@@ -12,7 +12,7 @@ namespace PrecinctMP
     /// v0.1 : connexion à deux, on se voit et on se déplace ensemble.
     /// v0.2 : vrai modèle animé du policier à pied, vraie voiture avec livrée.
     /// v0.2.1 : actions ponctuelles (menotter, tirer, sauter...) via l'état d'animation.
-    /// v0.2.2 : monde partagé étape 1 — heure et météo de l'hôte imposées aux clients.
+    /// v3.0.0 : monde partagé étape 1 — heure et météo de l'hôte imposées aux clients.
     /// v0.3.0 : étapes 2-3 — crimes/appels et suspects de l'hôte partagés, crimes du client coupés.
     ///
     /// F8  = débuter une session   F9 = rejoindre   F10 = quitter
