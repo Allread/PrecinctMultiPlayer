@@ -23,6 +23,9 @@ namespace PrecinctMP
         public event Action<byte, string> PlayerJoined;
         public event Action<byte> PlayerLeft;
         public event Action<byte, string> ChatReceived;
+        public event Action<WorldState> WorldReceived;
+        /// <summary>Hôte : un client vient d'être accepté (pour lui envoyer l'état du monde).</summary>
+        public event Action<byte> ClientAccepted;
 
         private NetManager _net;
         private NetPeer _server; // côté client
@@ -97,6 +100,15 @@ namespace PrecinctMP
             s.Write(_w);
             if (IsHost) _net.SendToAll(_w, DeliveryMethod.Sequenced);
             else _server.Send(_w, DeliveryMethod.Sequenced);
+        }
+
+        /// <summary>Hôte uniquement : diffuse l'heure et la météo.</summary>
+        public void SendWorld(WorldState ws)
+        {
+            if (!IsHost || _net == null || _peerToId.Count == 0) return;
+            _w.Reset();
+            ws.Write(_w);
+            _net.SendToAll(_w, DeliveryMethod.ReliableSequenced);
         }
 
         public void SendChat(string text)
@@ -186,6 +198,9 @@ namespace PrecinctMP
                         if (s.Id != LocalId) StateReceived?.Invoke(s);
                         break;
                     }
+                    case MsgType.World when !IsHost:
+                        WorldReceived?.Invoke(WorldState.Read(r));
+                        break;
                     case MsgType.Chat:
                     {
                         byte id = r.GetByte(); string text = r.GetString();
@@ -240,6 +255,7 @@ namespace PrecinctMP
             _net.SendToAll(_w, DeliveryMethod.ReliableOrdered, peer);
 
             PlayerJoined?.Invoke(id, name);
+            ClientAccepted?.Invoke(id);
             MelonLogger.Msg($"[MP] {name} a rejoint (id {id}).");
         }
     }

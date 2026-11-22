@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.2.1", "Anthony")]
+[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.2.2", "Anthony")]
 [assembly: MelonGame(null, null)] // nom exact du jeu/éditeur à renseigner une fois connu
 
 namespace PrecinctMP
@@ -12,6 +12,7 @@ namespace PrecinctMP
     /// v0.1 : connexion à deux, on se voit et on se déplace ensemble.
     /// v0.2 : vrai modèle animé du policier à pied, vraie voiture avec livrée.
     /// v0.2.1 : actions ponctuelles (menotter, tirer, sauter...) via l'état d'animation.
+    /// v0.2.2 : monde partagé étape 1 — heure et météo de l'hôte imposées aux clients.
     ///
     /// F8  = débuter une session   F9 = rejoindre   F10 = quitter
     /// F7  = diagnostic  F11 = afficher/masquer le HUD
@@ -26,6 +27,7 @@ namespace PrecinctMP
         private readonly LocalPlayer _local = new LocalPlayer();
         private readonly RemotePlayers _remotes = new RemotePlayers();
         private readonly List<string> _feed = new List<string>();
+        private readonly WorldSync _world = new WorldSync();
         private readonly JoinDialog _joinDialog = new JoinDialog();
         private readonly HostDialog _hostDialog = new HostDialog();
         private bool AnyDialogOpen => _joinDialog.IsOpen || _hostDialog.IsOpen;
@@ -47,6 +49,8 @@ namespace PrecinctMP
             _session.PlayerJoined += (id, n) => { _remotes.Add(id, n); Feed($"{n} a rejoint la patrouille"); };
             _session.PlayerLeft += id => { _remotes.Remove(id); Feed($"Joueur {id} est parti"); };
             _session.ChatReceived += (id, t) => Feed($"{NameOf(id)} : {t}");
+            _session.WorldReceived += _world.Apply;
+            _session.ClientAccepted += _ => _world.ForceSendSoon();
 
             _joinDialog.OnJoin = (ip, port) =>
             {
@@ -80,6 +84,9 @@ namespace PrecinctMP
             LogPlayerDetection();
             _local.Update(_playerObject.Value, _minVehicleMass.Value);
             _remotes.SetTemplate(_local.Player, _local.BodyAnimator);
+
+            if (_session.IsHost && _world.TryCaptureForSend(out var ws)) _session.SendWorld(ws);
+            if (!_session.IsActive && _world.Status.Length > 0) _world.Reset(); // session terminée
 
             if (_session.IsConnected && Time.unscaledTime >= _nextSend)
             {
@@ -121,11 +128,14 @@ namespace PrecinctMP
                 : _local.Vehicle != null ? $"en voiture ({_local.VehicleName})" : "à pied";
             if (_local.Player != null) player += _local.UsingGameApi ? "" : " [mode générique]";
 
-            GUI.Box(new Rect(10, 10, 330, 70 + _feed.Count * 18), "PrecinctMP 0.2.1");
+            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.2.2");
             GUI.Label(new Rect(20, 32, 310, 20), $"Réseau : {status}");
             GUI.Label(new Rect(20, 50, 310, 20), $"Local : {player} — {_remotes.Count} autre(s) joueur(s)");
+            int line = 0;
+            if (_world.Status.Length > 0)
+                GUI.Label(new Rect(20, 72 + line++ * 18, 310, 20), "Monde : " + _world.Status);
             for (int i = 0; i < _feed.Count; i++)
-                GUI.Label(new Rect(20, 72 + i * 18, 310, 20), _feed[i]);
+                GUI.Label(new Rect(20, 72 + line++ * 18, 310, 20), _feed[i]);
         }
 
         public override void OnApplicationQuit()
