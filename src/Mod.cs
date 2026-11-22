@@ -2,14 +2,15 @@ using System.Collections.Generic;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.2.2", "Anthony")]
+[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.2.0", "Anthony")]
 [assembly: MelonGame(null, null)] // nom exact du jeu/éditeur à renseigner une fois connu
 
 namespace PrecinctMP
 {
     /// <summary>
     /// Mod multijoueur expérimental pour The Precinct.
-    /// v0.2 : on voit les autres joueurs (à pied ou en voiture) se déplacer.
+    /// v0.1 : connexion à deux, on se voit et on se déplace ensemble.
+    /// v0.2 : vrai modèle animé du policier à pied, vraie voiture avec livrée.
     ///
     /// F8  = débuter une session   F9 = rejoindre   F10 = quitter
     /// F7  = diagnostic  F11 = afficher/masquer le HUD
@@ -77,6 +78,7 @@ namespace PrecinctMP
             _session.Poll();
             LogPlayerDetection();
             _local.Update(_playerObject.Value, _minVehicleMass.Value);
+            _remotes.SetTemplate(_local.Player, _local.BodyAnimator);
 
             if (_session.IsConnected && Time.unscaledTime >= _nextSend)
             {
@@ -118,7 +120,7 @@ namespace PrecinctMP
                 : _local.Vehicle != null ? $"en voiture ({_local.VehicleName})" : "à pied";
             if (_local.Player != null) player += _local.UsingGameApi ? "" : " [mode générique]";
 
-            GUI.Box(new Rect(10, 10, 330, 70 + _feed.Count * 18), "PrecinctMP 0.2.2");
+            GUI.Box(new Rect(10, 10, 330, 70 + _feed.Count * 18), "PrecinctMP 0.2.0");
             GUI.Label(new Rect(20, 32, 310, 20), $"Réseau : {status}");
             GUI.Label(new Rect(20, 50, 310, 20), $"Local : {player} — {_remotes.Count} autre(s) joueur(s)");
             for (int i = 0; i < _feed.Count; i++)

@@ -28,6 +28,8 @@ namespace PrecinctMP
         public int VehicleType;  // Il2Cpp.VehicleManager.VehicleType
         public int Livery;       // Il2Cpp.CustomisationManager.VehicleLiveryCustomisation
         public byte Siren;       // Il2Cpp.Siren.SirenState (0 = éteinte)
+        public float[] Anim;     // à pied : paramètres Animator + poids des calques (voir AnimatorSync)
+        public byte AnimParamCount;
 
         public void Write(NetDataWriter w)
         {
@@ -36,7 +38,8 @@ namespace PrecinctMP
             w.Put(Seq);
             Net.PutVec(w, Pos);
             Net.PutQuat(w, Rot);
-            byte flags = (byte)(InVehicle ? 1 : 0);
+            bool hasAnim = !InVehicle && Anim != null && Anim.Length > 0;
+            byte flags = (byte)((InVehicle ? 1 : 0) | (hasAnim ? 2 : 0));
             w.Put(flags);
             if (InVehicle)
             {
@@ -46,6 +49,13 @@ namespace PrecinctMP
                 w.Put((short)VehicleType);
                 w.Put((byte)Livery);
                 w.Put(Siren);
+            }
+            if (hasAnim)
+            {
+                int n = System.Math.Min(Anim.Length, AnimatorSync.MaxValues);
+                w.Put((byte)n);
+                w.Put(AnimParamCount);
+                for (int i = 0; i < n; i++) w.Put(Anim[i]);
             }
         }
 
@@ -69,13 +79,21 @@ namespace PrecinctMP
                 s.Livery = r.GetByte();
                 s.Siren = r.GetByte();
             }
+            if ((flags & 2) != 0)
+            {
+                int n = r.GetByte();
+                if (n > AnimatorSync.MaxValues) throw new System.IO.InvalidDataException("anim trop long");
+                s.AnimParamCount = r.GetByte();
+                s.Anim = new float[n];
+                for (int i = 0; i < n; i++) s.Anim[i] = r.GetFloat();
+            }
             return s;
         }
     }
 
     public static class Net
     {
-        public const int ProtocolVersion = 2;
+        public const int ProtocolVersion = 3;
         public const string ConnectionKey = "PrecinctMP";
 
         public static void PutVec(NetDataWriter w, Vector3 v) { w.Put(v.x); w.Put(v.y); w.Put(v.z); }
