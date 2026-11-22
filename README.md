@@ -2,7 +2,7 @@
 
 Mod multijoueur expérimental et non officiel pour *The Precinct*.
 
-> Le projet est en développement. La v3.0.0 est écrite, mais n'est pas encore compilée ni validée en jeu.
+> Le projet est en développement. Les DLL de la v3.0.0 sont disponibles dans le dossier `mod_dll`, mais cette version reste expérimentale.
 
 ## Présentation
 
