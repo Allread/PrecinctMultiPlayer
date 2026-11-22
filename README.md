@@ -1,105 +1,156 @@
-# PrecinctMP — mod multijoueur expérimental pour The Precinct
+# PrecinctMP — mod multijoueur expérimental pour *The Precinct*
 
-> Projet non officiel, au tout début. Rien n'a encore été testé en jeu.
+> Projet communautaire non officiel. La version actuelle est une version expérimentale, écrite mais encore à tester en jeu.
 
-## Ce que fait la v0.2.0
+## Fonctionnalités actuelles — v0.2.0
 
-- Héberger / rejoindre une partie en UDP (jusqu'à 4 joueurs, port 7777 par défaut).
-- Chaque joueur voit les autres se déplacer, à pied ou en voiture, avec leur pseudo et leur distance.
-- Le mod lit le joueur et sa voiture directement via les classes du jeu (`PlayerManager`, `VehicleController`).
-- La voiture des autres joueurs utilise **le vrai modèle du jeu, avec la même livrée** (Cruiser, SUV, Station Wagon...). Ni l'un ni l'autre n'a de collision.
-- **Le policier à pied utilise le vrai modèle du jeu, animé** : le mod envoie les paramètres d'animation (marche, course, accroupi, arme…) et le modèle distant joue les mêmes animations. Limite : il a **ton** apparence (tenue), pas celle de l'autre joueur.
-- `[GYRO]` s'affiche à côté du pseudo quand le gyrophare d'un autre joueur est allumé.
-- Chaque joueur garde **sa propre partie solo** : PNJ, crimes, trafic et météo ne sont pas synchronisés.
+- Héberger ou rejoindre une session UDP jusqu'à 4 joueurs.
+- Port UDP `7777` par défaut, modifiable depuis la fenêtre d'hébergement.
+- Afficher les autres joueurs avec leur pseudo et leur distance.
+- Détecter le joueur et le véhicule local via les classes IL2CPP du jeu (`PlayerManager`, `VehicleController`).
+- Utiliser le véritable modèle du jeu pour les véhicules distants, avec leur type et leur livrée (`Cruiser`, `SUV`, `Station Wagon`, etc.).
+- Utiliser le véritable modèle animé du policier à pied.
+- Synchroniser les principaux états d'animation : marche, course, accroupissement et arme.
+- Afficher `[GYRO]` lorsque le gyrophare d'un autre joueur est actif.
+- Afficher les adresses réseau de l'hôte, notamment Radmin VPN, ZeroTier, Tailscale, Hamachi et le réseau local.
+- Afficher l'adresse IP publique de la box lorsqu'elle peut être récupérée par un service externe.
+- Bloquer les commandes du joueur pendant la saisie dans les fenêtres F8 et F9.
 
-## Touches
+Chaque joueur conserve sa propre partie solo. Les PNJ, crimes, trafics, suspects, incidents, météo et heure ne sont pas synchronisés.
+
+Le personnage distant utilise actuellement l'apparence du joueur local. La tenue de l'autre joueur et les actions ponctuelles comme les menottes ou le tir sont prévues pour une version ultérieure.
+
+## Commandes
 
 | Touche | Action |
 |---|---|
-| F8 | Ouvre « DÉBUTER UNE SESSION MULTIJOUEUR » : tes IP (Radmin, ZeroTier, réseau local…) avec un bouton Copier, et le port. Pendant une session, permet de l'arrêter. |
-| F9 | Ouvre « REJOINDRE UNE SESSION » : IP + port (Entrée = rejoindre, Échap = annuler). Les valeurs sont mémorisées. |
+| F8 | Ouvre « DÉBUTER UNE SESSION MULTIJOUEUR ». Affiche les adresses réseau et le port, ou permet d'arrêter la session en cours. |
+| F9 | Ouvre « REJOINDRE UNE SESSION ». Saisie de l'adresse IP et du port. |
+| Entrée | Valide la fenêtre F8 ou F9. |
+| Échap | Ferme la fenêtre F8 ou F9. |
+| F10 | Quitte la session multijoueur. |
+| F7 | Génère `UserData\PrecinctMP_dump.txt` pour le diagnostic. |
+| F11 | Affiche ou masque le HUD. |
 
-Pendant qu'une fenêtre est ouverte, les commandes du jeu sont bloquées.
-| F10 | Quitter la session |
-| F7 | Diagnostic → `UserData/PrecinctMP_dump.txt` |
-| F11 | Afficher / masquer le HUD |
+Les valeurs saisies dans la fenêtre F9 sont mémorisées automatiquement dans `UserData\MelonPreferences.cfg`. Une seule fenêtre peut être ouverte à la fois.
 
 ## Compilation
 
-Prérequis : [.NET SDK 8](https://dotnet.microsoft.com/download), MelonLoader installé sur le jeu et lancé une fois.
+Prérequis :
 
-1. Lance le jeu une fois avec MelonLoader. Le jeu est en **IL2CPP** : au premier lancement, MelonLoader génère `MelonLoader\Il2CppAssemblies\`, et le projet a besoin de ce dossier pour compiler.
-2. Compile :
-   ```
-   dotnet build -c Release -p:GameDir="D:\SteamLibrary\steamapps\common\The Precinct"
-   ```
-3. `PrecinctMP.dll` est copié dans `Mods\` et `LiteNetLib.dll` dans `UserLibs\`.
+- [.NET SDK 8](https://dotnet.microsoft.com/download) ;
+- MelonLoader installé dans le dossier du jeu ;
+- le jeu lancé au moins une fois avec MelonLoader ;
+- le dossier `MelonLoader\Il2CppAssemblies\` généré par MelonLoader.
 
-## Configuration
+Le jeu utilise actuellement **IL2CPP**. Les DLL présentes dans `MelonLoader\Il2CppAssemblies\` sont nécessaires à la compilation.
 
-Après le premier lancement, édite `UserData\MelonPreferences.cfg`, section `[PrecinctMP]` :
+Compile depuis le dossier du projet :
 
+```powershell
+dotnet build -c Release -p:GameDir="G:\SteamLibrary\steamapps\common\The Precinct"
 ```
+
+Le projet copie automatiquement `PrecinctMP.dll` dans `Mods\` et `LiteNetLib.dll` dans `UserLibs\`.
+
+Si le jeu est installé ailleurs, adapte `GameDir` à ton installation. Le chemin peut aussi être défini dans `PrecinctMP.csproj`.
+
+## Configuration et réseau
+
+La configuration se trouve dans `UserData\MelonPreferences.cfg`, section `[PrecinctMP]`. Les valeurs principales sont créées automatiquement au premier lancement :
+
+```ini
 PlayerName = "Anthony"
-HostIp = "82.x.x.x"      # IP publique de l'hôte (ou IP Radmin/ZeroTier/Tailscale)
+HostIp = ""
 Port = 7777
-PlayerObjectName = ""    # à remplir si "joueur NON détecté"
+PlayerObjectName = ""
 MinVehicleMass = 500.0
 ```
 
-L'hôte doit ouvrir le **port UDP 7777** sur sa box, ou alors vous passez tous par un VPN de jeu (Radmin VPN, ZeroTier, Tailscale). Le VPN est le plus simple pour tester.
+L'adresse et le port utilisés pour rejoindre une session se saisissent normalement dans F9. Il n'est donc plus nécessaire de modifier `HostIp` et `Port` manuellement.
 
-## Fichier à m'envoyer en priorité
+### Connexion par Internet
 
-`MelonLoader\Il2CppAssemblies\Assembly-CSharp.dll` contient la liste de toutes les classes et méthodes du jeu, mais pas leur code. C'est grâce à lui que je peux brancher le mod sur les vraies classes (joueur, voiture, sirène, incidents).
+Dans la fenêtre F8, l'adresse **Internet (box)** est récupérée en arrière-plan via `api.ipify.org` et des services de secours. Cette adresse peut mettre quelques secondes à apparaître et dépend d'un service externe.
 
-## Premier test (à faire en solo d'abord)
+Pour une connexion directe par Internet :
 
-1. Lance le jeu, charge une partie : le HUD doit afficher `Local : à pied` ou `en voiture`.
-2. Si le HUD affiche `joueur NON détecté`, appuie sur **F7** et envoie-moi `UserData\PrecinctMP_dump.txt`.
-3. Même si la détection marche, fais F7 une fois à pied et une fois au volant, puis envoie-moi les deux dumps. Avec les vraies classes du jeu, je pourrai passer à l'étape suivante.
-4. Test réseau sur un seul PC : lance le jeu, appuie sur F8, puis lance une 2e instance si Steam le permet et appuie sur F9 avec `HostIp = 127.0.0.1`. Sinon, teste directement avec un ami.
+1. Repère l'adresse **Réseau local** de l'ordinateur hôte dans F8.
+2. Configure sur la box une redirection **UDP du port choisi**, par défaut `7777`, vers cette adresse locale.
+3. Autorise le jeu dans le pare-feu Windows si nécessaire.
+4. Donne aux autres joueurs l'adresse **Internet (box)** et le port affichés dans F8.
 
-En cas de plantage, envoie `MelonLoader\Latest.log`.
+### Connexion par VPN
+
+Radmin VPN, ZeroTier, Tailscale ou Hamachi évitent généralement la configuration de la box. Dans ce cas, les autres joueurs utilisent dans F9 l'adresse marquée avec le nom du VPN, et non l'adresse Internet de la box.
+
+## Installation d'une mise à jour
+
+Lorsque l'archive ne contient pas le fichier `.csproj` :
+
+1. Ferme Visual Studio ou le projet.
+2. Ouvre le dossier qui contient `PrecinctMP.csproj`.
+3. Copie le contenu du dossier `src` de l'archive par-dessus le dossier `src` existant.
+4. Remplace également `README.md`.
+5. Ne remplace pas `PrecinctMP.csproj` : il contient notamment le chemin du jeu.
+6. Rouvre le projet et compile en configuration `Release`.
+
+Le dossier `src` contient le code source du projet. Il ne doit pas être copié directement dans le dossier du jeu ; seule la DLL compilée doit être installée dans `Mods`.
+
+## Diagnostic et premier test
+
+1. Lance le jeu et charge une partie solo.
+2. Vérifie que le HUD affiche `Local : à pied` ou `Local : en voiture`.
+3. Appuie sur F7 à pied puis au volant afin de générer les diagnostics.
+4. Si le joueur n'est pas détecté, envoie `UserData\PrecinctMP_dump.txt`.
+5. Pour tester le réseau, démarre une session avec F8, puis rejoins-la avec F9 depuis une autre instance ou un autre PC.
+
+Pour un test local, utilise `127.0.0.1` dans F9. Pour un test entre amis, utilise une adresse VPN ou l'adresse Internet après avoir configuré la redirection UDP.
+
+En cas de plantage, fournir `MelonLoader\Latest.log` ainsi que `UserData\PrecinctMP_dump.txt` si disponible.
+
+Le fichier `MelonLoader\Il2CppAssemblies\Assembly-CSharp.dll` est également utile pour identifier les classes et méthodes du jeu, mais il ne contient pas directement leur code source.
 
 ## Feuille de route
 
-| Étape | Contenu | État |
+| Version | Contenu | État |
 |---|---|---|
-| 0.1 | Réseau + positions joueurs/voitures (formes simples) | ✅ écrit, à tester |
-| 0.2 | Classes réelles du jeu, vrais modèles de voiture + livrée, état sirène | ✅ écrit, à tester |
-| 0.2.0 | Vrai modèle du policier à pied, animé | ✅ écrit, à tester |
-| 0.2.x | Tenue réelle de l'autre joueur, actions ponctuelles (menottes, tir…) | ⏳ |
-| 0.3 | Gyrophares/sirène, livrée de la voiture distante, collisions voiture ↔ voiture | ⏳ |
-| 0.4 | Partage des appels radio : l'hôte crée l'incident, les autres le voient | ⏳ |
-| 0.5 | Synchro des suspects poursuivis et des arrestations (le plus dur) | ⏳ |
-| plus tard | Trafic, PNJ et heure/météo synchronisés | ? |
+| 0.1 | Réseau et positions des joueurs et véhicules avec formes simples | ✅ Écrit |
+| 0.2 | Classes réelles du jeu, modèles et livrées des véhicules, état du gyrophare | ✅ Écrit, à tester |
+| 0.2.0 | Modèle réel et animations du policier à pied | ✅ Écrit, à tester |
+| 0.2.x | Tenue de l'autre joueur, menottes, tir et autres actions | ⏳ Prévu |
+| 0.3 | Synchronisation complète des gyrophares et sirènes, collisions entre véhicules | ⏳ Prévu |
+| 0.4 | Partage des appels radio et des incidents | ⏳ Prévu |
+| 0.5 | Synchronisation des suspects poursuivis et des arrestations | ⏳ Prévu |
+| Plus tard | Synchronisation du trafic, des PNJ, de l'heure et de la météo | ⏳ Prévu |
 
-## Structure
+## Structure du projet
 
-```
+```text
 PrecinctMP.csproj
-src/Mod.cs           Point d'entrée MelonLoader, touches, HUD
-src/NetSession.cs    Hôte/client LiteNetLib, relais, ids des joueurs
-src/Protocol.cs      Format des paquets
-src/LocalPlayer.cs   Détection du joueur/voiture local
-src/RemotePlayers.cs Affichage et interpolation des autres joueurs
-src/Diagnostics.cs   Dump F7 pour découvrir les classes du jeu
-src/GameApi.cs       Accès aux classes du jeu (PlayerManager, VehicleController...)
-src/VisualClone.cs   Copie « coquille vide » d'un objet du jeu (meshes ± Animator)
-src/VehicleVisual.cs Voiture des joueurs distants (prefab du jeu + livrée)
-src/CharacterAnim.cs Synchro des paramètres d'animation du policier
-src/Polyfills.cs     Attributs compilateur manquants dans les DLL IL2CPP
-src/ModalDialog.cs   Base des fenêtres (souris, blocage des commandes, Entrée/Échap)
+src/Mod.cs           Point d'entrée MelonLoader, touches et HUD
+src/NetSession.cs    Hôte/client LiteNetLib, relais et identifiants
+src/Protocol.cs      Format des paquets réseau
+src/LocalPlayer.cs   Détection du joueur et du véhicule local
+src/RemotePlayers.cs Affichage et interpolation des joueurs distants
+src/Diagnostics.cs   Diagnostic F7 des classes du jeu
+src/GameApi.cs       Accès aux classes du jeu
+src/VisualClone.cs   Copie visuelle minimale d'un objet du jeu
+src/VehicleVisual.cs Véhicule distant et livrée du jeu
+src/CharacterAnim.cs Synchronisation des animations du policier
+src/Polyfills.cs     Attributs nécessaires aux DLL IL2CPP
+src/ModalDialog.cs   Base commune des fenêtres modales
 src/JoinDialog.cs    Fenêtre « Rejoindre une session »
 src/HostDialog.cs    Fenêtre « Débuter une session multijoueur »
-src/Hotkeys.cs       Touches via l'API Windows (compatible IL2CPP / nouvel Input System)
+src/Hotkeys.cs       Gestion des touches via l'API Windows
 ```
 
 ## Limites connues
 
-- Pas de chiffrement, et un client peut envoyer de fausses positions. À n'utiliser qu'entre amis.
-- Une mise à jour du jeu peut casser le mod.
-- Les touches F7 à F11 sont lues directement par Windows : elles marchent même si le jeu utilise le nouvel Input System d'Unity, mais uniquement quand la fenêtre du jeu est au premier plan.
-- Si le HUD n'apparaît pas (IMGUI absent du build), le mod continue de fonctionner et écrit tout dans `MelonLoader\Latest.log`.
-- Projet communautaire non affilié à Fallen Tree Games ni à Kwalee.
+- Le protocole n'est pas chiffré et un client peut envoyer de fausses positions. À utiliser uniquement entre amis.
+- Une mise à jour du jeu ou de MelonLoader peut casser le mod.
+- La récupération de l'IP publique dépend d'un service web externe.
+- Une connexion directe par Internet nécessite une redirection du port UDP et une configuration correcte du pare-feu.
+- Les touches F7 à F11 sont lues via l'API Windows : elles fonctionnent lorsque la fenêtre du jeu est au premier plan.
+- Si l'interface HUD n'apparaît pas, le mod peut continuer à fonctionner ; consulter `MelonLoader\Latest.log`.
+- Projet non affilié à Fallen Tree Games ni à Kwalee.
