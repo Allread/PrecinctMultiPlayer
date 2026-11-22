@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using UnityEngine;
@@ -13,12 +16,17 @@ namespace PrecinctMP
     public class HostDialog : ModalDialog
     {
         protected override float Width => 420f;
-        protected override float Height => 120f + Mathf.Max(1, _ips.Count) * 26f + 90f;
+        protected override float Height => 150f + Mathf.Max(1, _ips.Count) * 26f + 90f;
         protected override string Title => _running ? "SESSION MULTIJOUEUR EN COURS" : "DÉBUTER UNE SESSION MULTIJOUEUR";
 
         private readonly List<(string ip, string label)> _ips = new List<(string, string)>();
         private string _port = "", _error = "", _copied = "";
         private bool _running;
+
+        // IP internet : récupérée une fois en arrière-plan, puis gardée en cache
+        private static volatile string _publicIp;
+        private static volatile string _publicStatus = "";
+        private static bool _fetching;
 
         public System.Action<int> OnStart;
         public System.Action OnStop;
@@ -29,6 +37,7 @@ namespace PrecinctMP
             _error = _copied = "";
             _running = alreadyHosting;
             RefreshIps();
+            FetchPublicIp();
             Show();
         }
 
@@ -37,6 +46,17 @@ namespace PrecinctMP
             float row = y + 36;
             GUI.Label(new Rect(x + 20, row, Width - 40, 22), "IP de l'hôte à donner aux autres joueurs :");
             row += 26;
+
+            // IP internet (pour jouer sans VPN : nécessite d'ouvrir le port sur la box)
+            string pub = _publicIp;
+            GUI.Label(new Rect(x + 30, row, 150, 22), pub ?? _publicStatus);
+            GUI.Label(new Rect(x + 180, row, 150, 22), "Internet (box)");
+            if (pub != null && GUI.Button(new Rect(x + Width - 90, row, 70, 22), _copied == pub ? "Copié" : "Copier"))
+            {
+                GUIUtility.systemCopyBuffer = pub;
+                _copied = pub;
+            }
+            row += 30;
 
             if (_ips.Count == 0)
             {
@@ -62,7 +82,7 @@ namespace PrecinctMP
             row += 26;
 
             GUI.Label(new Rect(x + 20, row, Width - 40, 22),
-                _error.Length > 0 ? "Erreur : " + _error : "Hors VPN : ouvre ce port en UDP sur ta box et donne ton IP publique.");
+                _error.Length > 0 ? "Erreur : " + _error : "IP Internet : ouvre ce port en UDP sur ta box (redirection vers ce PC).");
 
             string main = _running ? "Arrêter la session" : "Démarrer";
             if (GUI.Button(new Rect(x + 20, y + Height - 46, 170, 30), main)) OnSubmit();
@@ -75,6 +95,36 @@ namespace PrecinctMP
             if (!PortField.TryParse(_port, out int port)) { _error = "Port invalide (1 à 65535)."; return; }
             Close();
             OnStart?.Invoke(port);
+        }
+
+        private static readonly string[] PublicIpServices =
+        {
+            "https://api.ipify.org",
+            "https://icanhazip.com",
+            "https://ifconfig.me/ip",
+        };
+
+        /// <summary>Demande l'IP publique à un service web (en tâche de fond, sans bloquer le jeu).</summary>
+        private static void FetchPublicIp()
+        {
+            if (_publicIp != null || _fetching) return;
+            _fetching = true;
+            _publicStatus = "recherche...";
+            Task.Run(async () =>
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                foreach (var url in PublicIpServices)
+                {
+                    try
+                    {
+                        string ip = (await http.GetStringAsync(url)).Trim();
+                        if (System.Net.IPAddress.TryParse(ip, out _)) { _publicIp = ip; break; }
+                    }
+                    catch { /* service suivant */ }
+                }
+                if (_publicIp == null) _publicStatus = "indisponible";
+                _fetching = false;
+            });
         }
 
         /// <summary>Liste les IPv4 de la machine et devine leur type (VPN de jeu, réseau local...).</summary>
