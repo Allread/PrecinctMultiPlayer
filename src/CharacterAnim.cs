@@ -11,11 +11,25 @@ namespace PrecinctMP
     /// AnimatorController, donc les paramètres sont dans le même ordre : on
     /// envoie leurs valeurs (et le poids des calques), et le modèle distant joue
     /// les mêmes animations, sans avoir besoin de connaître leurs noms.
-    /// Les « Triggers » (actions ponctuelles) ne sont pas lisibles : ignorés.
+    ///
+    /// Actions ponctuelles (menotter, tirer, sauter, frapper...) : elles passent
+    /// souvent par des « Triggers », illisibles. On envoie donc aussi l'état
+    /// d'animation joué sur chaque calque (hash + avancement) ; si le modèle
+    /// distant ne joue pas le même état, on le fait basculer dessus (CrossFade).
     /// </summary>
     public class AnimatorSync
     {
         public const int MaxValues = 96;
+        public const int MaxLayers = 8;
+
+        /// <summary>État joué sur un calque.</summary>
+        public struct LayerState
+        {
+            public int Hash;          // fullPathHash de l'état
+            public float Time;        // normalizedTime (0..1 = un cycle)
+        }
+
+        private float[] _mismatchSince = new float[MaxLayers];
 
         private readonly Animator _anim;
         private readonly int[] _hashes;
@@ -78,6 +92,52 @@ namespace PrecinctMP
             }
             int layers = Mathf.Min(v.Length - paramCount, _anim.layerCount - 1);
             for (int l = 0; l < layers; l++) _anim.SetLayerWeight(l + 1, v[paramCount + l]);
+        }
+
+        /// <summary>États joués sur chaque calque (si transition en cours : l'état d'arrivée).</summary>
+        public LayerState[] CaptureStates()
+        {
+            int n = Mathf.Min(_anim.layerCount, MaxLayers);
+            var st = new LayerState[n];
+            for (int l = 0; l < n; l++)
+            {
+                var info = _anim.IsInTransition(l) ? _anim.GetNextAnimatorStateInfo(l) : _anim.GetCurrentAnimatorStateInfo(l);
+                st[l].Hash = info.fullPathHash;
+                st[l].Time = info.normalizedTime;
+            }
+            return st;
+        }
+
+        /// <summary>
+        /// Fait jouer au modèle distant les mêmes états que le joueur.
+        /// On laisse d'abord l'Animator suivre les paramètres ; on ne force que si
+        /// l'écart dure (évite les à-coups quand il y arrive tout seul).
+        /// </summary>
+        public void ApplyStates(LayerState[] st, float now)
+        {
+            if (st == null) return;
+            int n = Mathf.Min(st.Length, Mathf.Min(_anim.layerCount, MaxLayers));
+            for (int l = 0; l < n; l++)
+            {
+                int target = st[l].Hash;
+                if (target == 0) continue;
+
+                var cur = _anim.GetCurrentAnimatorStateInfo(l);
+                bool inTrans = _anim.IsInTransition(l);
+                bool ok = inTrans ? _anim.GetNextAnimatorStateInfo(l).fullPathHash == target
+                                  : cur.fullPathHash == target;
+                if (ok) { _mismatchSince[l] = 0f; continue; }
+
+                if (_mismatchSince[l] == 0f) { _mismatchSince[l] = now; continue; }
+                if (now - _mismatchSince[l] < 0.12f) continue;
+
+                if (!_anim.HasState(l, target)) { _mismatchSince[l] = 0f; continue; }
+                // Avancement dans le cycle courant (les animations en boucle dépassent 1)
+                float t = st[l].Time;
+                t = t > 1f ? t - Mathf.Floor(t) : Mathf.Clamp01(t);
+                _anim.CrossFade(target, 0.1f, l, t);
+                _mismatchSince[l] = 0f;
+            }
         }
 
         /// <summary>

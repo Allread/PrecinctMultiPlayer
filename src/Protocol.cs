@@ -30,6 +30,7 @@ namespace PrecinctMP
         public byte Siren;       // Il2Cpp.Siren.SirenState (0 = éteinte)
         public float[] Anim;     // à pied : paramètres Animator + poids des calques (voir AnimatorSync)
         public byte AnimParamCount;
+        public AnimatorSync.LayerState[] AnimStates; // état joué par calque (actions ponctuelles)
 
         public void Write(NetDataWriter w)
         {
@@ -56,6 +57,9 @@ namespace PrecinctMP
                 w.Put((byte)n);
                 w.Put(AnimParamCount);
                 for (int i = 0; i < n; i++) w.Put(Anim[i]);
+                int ls = AnimStates == null ? 0 : System.Math.Min(AnimStates.Length, AnimatorSync.MaxLayers);
+                w.Put((byte)ls);
+                for (int i = 0; i < ls; i++) { w.Put(AnimStates[i].Hash); w.Put(AnimStates[i].Time); }
             }
         }
 
@@ -86,6 +90,10 @@ namespace PrecinctMP
                 s.AnimParamCount = r.GetByte();
                 s.Anim = new float[n];
                 for (int i = 0; i < n; i++) s.Anim[i] = r.GetFloat();
+                int ls = r.GetByte();
+                if (ls > AnimatorSync.MaxLayers) throw new System.IO.InvalidDataException("trop de calques");
+                s.AnimStates = new AnimatorSync.LayerState[ls];
+                for (int i = 0; i < ls; i++) { s.AnimStates[i].Hash = r.GetInt(); s.AnimStates[i].Time = r.GetFloat(); }
             }
             return s;
         }
@@ -93,7 +101,7 @@ namespace PrecinctMP
 
     public static class Net
     {
-        public const int ProtocolVersion = 3;
+        public const int ProtocolVersion = 4;
         public const string ConnectionKey = "PrecinctMP";
 
         public static void PutVec(NetDataWriter w, Vector3 v) { w.Put(v.x); w.Put(v.y); w.Put(v.z); }

@@ -124,7 +124,11 @@ namespace PrecinctMP
                         r.ModelAnim = new AnimatorSync(r.ModelAnim.Animator);
                     if (r.ModelAnim != null)
                     {
-                        try { r.ModelAnim.Apply(s.Anim, s.AnimParamCount, dt); }
+                        try
+                        {
+                            r.ModelAnim.Apply(s.Anim, s.AnimParamCount, dt);
+                            r.ModelAnim.ApplyStates(s.AnimStates, Time.time);
+                        }
                         catch { r.ModelAnim = null; }
                     }
                 }

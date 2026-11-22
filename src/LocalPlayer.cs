@@ -85,7 +85,11 @@ namespace PrecinctMP
 #endif
             if (_animSync != null && onFoot)
             {
-                try { s.Anim = _animSync.Capture(out s.AnimParamCount); }
+                try
+                {
+                    s.Anim = _animSync.Capture(out s.AnimParamCount);
+                    s.AnimStates = _animSync.CaptureStates();
+                }
                 catch { _animSync = null; }
             }
 
