@@ -24,6 +24,8 @@ namespace PrecinctMP
         public event Action<byte> PlayerLeft;
         public event Action<byte, string> ChatReceived;
         public event Action<WorldState> WorldReceived;
+        public event Action<List<IncidentInfo>> IncidentsReceived;
+        public event Action<List<SuspectState>> SuspectsReceived;
         /// <summary>Hôte : un client vient d'être accepté (pour lui envoyer l'état du monde).</summary>
         public event Action<byte> ClientAccepted;
 
@@ -110,6 +112,31 @@ namespace PrecinctMP
             ws.Write(_w);
             _net.SendToAll(_w, DeliveryMethod.ReliableSequenced);
         }
+
+        /// <summary>Hôte uniquement : crimes en cours.</summary>
+        public void SendIncidents(List<IncidentInfo> list)
+        {
+            if (!IsHost || _net == null || _peerToId.Count == 0) return;
+            _w.Reset();
+            SharedWorldProtocol.WriteIncidents(_w, list);
+            _net.SendToAll(_w, DeliveryMethod.ReliableSequenced);
+        }
+
+        /// <summary>Hôte uniquement : suspects (positions, animations).</summary>
+        public void SendSuspects(List<SuspectState> list)
+        {
+            if (!IsHost || _net == null || _peerToId.Count == 0) return;
+            int next = 0, guard = 0;
+            int total = System.Math.Min(list.Count, SharedWorldProtocol.MaxSuspects);
+            while (next < total && guard++ < SharedWorldProtocol.MaxSuspects)
+            {
+                _w.Reset();
+                next = SharedWorldProtocol.WriteSuspects(_w, list, next);
+                _net.SendToAll(_w, DeliveryMethod.Unreliable);
+            }
+        }
+
+        public bool HasClients => IsHost && _peerToId.Count > 0;
 
         public void SendChat(string text)
         {
@@ -200,6 +227,12 @@ namespace PrecinctMP
                     }
                     case MsgType.World when !IsHost:
                         WorldReceived?.Invoke(WorldState.Read(r));
+                        break;
+                    case MsgType.Incidents when !IsHost:
+                        IncidentsReceived?.Invoke(SharedWorldProtocol.ReadIncidents(r));
+                        break;
+                    case MsgType.Suspects when !IsHost:
+                        SuspectsReceived?.Invoke(SharedWorldProtocol.ReadSuspects(r));
                         break;
                     case MsgType.Chat:
                     {

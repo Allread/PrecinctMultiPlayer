@@ -13,6 +13,8 @@ namespace PrecinctMP
         State = 5,        // tous : position du joueur / de sa voiture (20 Hz)
         Chat = 6,         // tous : message texte
         World = 7,        // hôte -> clients : heure + météo (toutes les 2 s)
+        Incidents = 8,    // hôte -> clients : crimes / appels en cours (toutes les secondes)
+        Suspects = 9,     // hôte -> clients : suspects des crimes (10 Hz)
     }
 
     /// <summary>État d'un joueur à un instant donné.</summary>
@@ -102,7 +104,7 @@ namespace PrecinctMP
 
     public static class Net
     {
-        public const int ProtocolVersion = 5;
+        public const int ProtocolVersion = 6;
         public const string ConnectionKey = "PrecinctMP";
 
         public static void PutVec(NetDataWriter w, Vector3 v) { w.Put(v.x); w.Put(v.y); w.Put(v.z); }

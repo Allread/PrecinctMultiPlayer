@@ -38,6 +38,7 @@
     <Reference Include="MelonLoader"><HintPath>$(MelonLibDir)\MelonLoader.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Il2CppInterop.Runtime"><HintPath>$(MelonLibDir)\Il2CppInterop.Runtime.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Il2CppInterop.Common"><HintPath>$(MelonLibDir)\Il2CppInterop.Common.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(MelonLibDir)\0Harmony.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 
   <!-- Toutes les DLL générées par MelonLoader : UnityEngine*, Assembly-CSharp, Il2Cppmscorlib... -->

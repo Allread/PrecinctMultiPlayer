@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.2.2", "Anthony")]
+[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.3.0", "Anthony")]
 [assembly: MelonGame(null, null)] // nom exact du jeu/éditeur à renseigner une fois connu
 
 namespace PrecinctMP
@@ -13,6 +13,7 @@ namespace PrecinctMP
     /// v0.2 : vrai modèle animé du policier à pied, vraie voiture avec livrée.
     /// v0.2.1 : actions ponctuelles (menotter, tirer, sauter...) via l'état d'animation.
     /// v0.2.2 : monde partagé étape 1 — heure et météo de l'hôte imposées aux clients.
+    /// v0.3.0 : étapes 2-3 — crimes/appels et suspects de l'hôte partagés, crimes du client coupés.
     ///
     /// F8  = débuter une session   F9 = rejoindre   F10 = quitter
     /// F7  = diagnostic  F11 = afficher/masquer le HUD
@@ -28,6 +29,10 @@ namespace PrecinctMP
         private readonly RemotePlayers _remotes = new RemotePlayers();
         private readonly List<string> _feed = new List<string>();
         private readonly WorldSync _world = new WorldSync();
+        private readonly SharedWorldView _sharedView = new SharedWorldView();
+#if IL2CPP
+        private readonly HostCrimes _hostCrimes = new HostCrimes();
+#endif
         private readonly JoinDialog _joinDialog = new JoinDialog();
         private readonly HostDialog _hostDialog = new HostDialog();
         private bool AnyDialogOpen => _joinDialog.IsOpen || _hostDialog.IsOpen;
@@ -51,6 +56,11 @@ namespace PrecinctMP
             _session.ChatReceived += (id, t) => Feed($"{NameOf(id)} : {t}");
             _session.WorldReceived += _world.Apply;
             _session.ClientAccepted += _ => _world.ForceSendSoon();
+            _session.IncidentsReceived += _sharedView.OnIncidents;
+            _session.SuspectsReceived += _sharedView.OnSuspects;
+#if IL2CPP
+            CrimeSuppression.Install(HarmonyInstance);
+#endif
 
             _joinDialog.OnJoin = (ip, port) =>
             {
@@ -88,6 +98,21 @@ namespace PrecinctMP
             if (_session.IsHost && _world.TryCaptureForSend(out var ws)) _session.SendWorld(ws);
             if (!_session.IsActive && _world.Status.Length > 0) _world.Reset(); // session terminée
 
+            // Monde partagé : l'hôte envoie ses crimes/suspects, le client coupe les siens
+#if IL2CPP
+            if (_session.IsHost) _hostCrimes.Tick(_session);
+            bool clientConnected = _session.IsActive && !_session.IsHost && _session.IsConnected;
+            CrimeSuppression.SetActive(clientConnected);
+#endif
+            if (!_session.IsActive)
+            {
+                if (_sharedView.SuspectCount > 0 || _sharedView.IncidentCount > 0) _sharedView.Clear();
+#if IL2CPP
+                if (_hostCrimes.IncidentCount > 0 || _hostCrimes.SuspectCount > 0) _hostCrimes.Reset();
+#endif
+            }
+            _sharedView.Update();
+
             if (_session.IsConnected && Time.unscaledTime >= _nextSend)
             {
                 _nextSend = Time.unscaledTime + SendInterval;
@@ -116,6 +141,11 @@ namespace PrecinctMP
 
         private void DrawHud()
         {
+            if (!AnyDialogOpen)
+            {
+                _sharedView.DrawSuspectLabels();
+                _sharedView.DrawHud(Screen.width - 350, 10);
+            }
             if (_joinDialog.IsOpen) { _joinDialog.Draw(); return; }
             if (_hostDialog.IsOpen) { _hostDialog.Draw(); return; }
             _remotes.DrawLabels();
@@ -128,7 +158,7 @@ namespace PrecinctMP
                 : _local.Vehicle != null ? $"en voiture ({_local.VehicleName})" : "à pied";
             if (_local.Player != null) player += _local.UsingGameApi ? "" : " [mode générique]";
 
-            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.2.2");
+            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.3.0");
             GUI.Label(new Rect(20, 32, 310, 20), $"Réseau : {status}");
             GUI.Label(new Rect(20, 50, 310, 20), $"Local : {player} — {_remotes.Count} autre(s) joueur(s)");
             int line = 0;
@@ -142,6 +172,9 @@ namespace PrecinctMP
         {
             _joinDialog.Close();
             _hostDialog.Close();
+#if IL2CPP
+            CrimeSuppression.SetActive(false);
+#endif
             _session.Stop();
         }
 

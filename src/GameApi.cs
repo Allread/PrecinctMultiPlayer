@@ -79,8 +79,11 @@ namespace PrecinctMP
                 var vc = _vehicles.GetVehicleControllerPrefabFromType(
                     (VehicleManager.VehicleType)type,
                     (CustomisationManager.VehicleLiveryCustomisation)livery);
-                if (vc == null && livery != 0)
-                    vc = _vehicles.GetVehicleControllerPrefabFromType((VehicleManager.VehicleType)type, 0);
+                // Repli : livrée « Undefined » (0) puis « Default » (1), utile pour les voitures civiles
+                for (int l = 0; vc == null && l <= 1; l++)
+                    if (l != livery)
+                        vc = _vehicles.GetVehicleControllerPrefabFromType(
+                            (VehicleManager.VehicleType)type, (CustomisationManager.VehicleLiveryCustomisation)l);
                 return vc != null ? vc.gameObject : null;
             }
             catch (Exception e) { WarnOnce("GetVehicleControllerPrefabFromType", e); return null; }
