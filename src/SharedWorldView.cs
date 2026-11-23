@@ -227,6 +227,63 @@ namespace PrecinctMP
             v.Car = car;
         }
 
+        // ---------- Requêtes pour les actions du client ----------
+
+        /// <summary>Suspect à pied le plus proche de <paramref name="pos"/>.</summary>
+        public bool TryGetNearest(Vector3 pos, float maxDist, out ushort id, out float dist, out byte status)
+        {
+            id = 0; dist = float.MaxValue; status = 0;
+            foreach (var v in _suspects.Values)
+            {
+                if (v.Last.InVehicle) continue;
+                float d = Vector3.Distance(pos, v.Capsule.transform.position - Vector3.up * 0.9f);
+                if (d < dist) { dist = d; id = v.Id; status = v.Last.Status; }
+            }
+            return id != 0 && dist <= maxDist;
+        }
+
+        /// <summary>
+        /// Tir : le segment origin -> target touche-t-il un suspect à pied ?
+        /// (test géométrique sur une capsule de 1,8 m, sans collider : les copies
+        /// n'ont aucune physique chez le client).
+        /// </summary>
+        public bool RaycastSuspect(Vector3 origin, Vector3 target, out ushort id, out Vector3 hit)
+        {
+            id = 0; hit = default;
+            Vector3 dir = target - origin;
+            float len = dir.magnitude;
+            if (len < 0.01f) return false;
+            dir /= len;
+            float maxAlong = len + 1.5f; // la cible du jeu est parfois juste devant le suspect
+            float best = float.MaxValue;
+
+            foreach (var v in _suspects.Values)
+            {
+                if (v.Last.InVehicle || v.Last.Status == 3 /* mort */) continue;
+                Vector3 root = v.Capsule.transform.position - Vector3.up * 0.9f;
+                Vector3 a = root + Vector3.up * 0.25f, b = root + Vector3.up * 1.75f;
+                if (!RayCapsule(origin, dir, a, b, 0.4f, out float t) || t > maxAlong || t >= best) continue;
+                best = t; id = v.Id; hit = origin + dir * t;
+            }
+            return id != 0;
+        }
+
+        /// <summary>Distance du rayon à l'axe de la capsule (approximation suffisante pour un tir).</summary>
+        private static bool RayCapsule(Vector3 o, Vector3 d, Vector3 a, Vector3 b, float radius, out float t)
+        {
+            // Points les plus proches entre le rayon (o + d*s) et le segment [a,b]
+            Vector3 u = d, v = b - a, w = o - a;
+            float A = Vector3.Dot(u, u), B = Vector3.Dot(u, v), C = Vector3.Dot(v, v);
+            float D = Vector3.Dot(u, w), E = Vector3.Dot(v, w);
+            float den = A * C - B * B;
+            float s = den > 1e-6f ? (B * E - C * D) / den : 0f;
+            float q = den > 1e-6f ? (A * E - B * D) / den : (C > 0 ? E / C : 0f);
+            q = Mathf.Clamp01(q);
+            s = Mathf.Max(0f, Vector3.Dot(a + v * q - o, u) / A);
+            t = s;
+            return (o + u * s - (a + v * q)).sqrMagnitude <= radius * radius;
+        }
+
         // ---------- HUD ----------
 
         public void DrawHud(float x, float y)

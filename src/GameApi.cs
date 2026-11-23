@@ -46,6 +46,14 @@ namespace PrecinctMP
             catch (Exception e) { WarnOnce("GetPlayerGameObject", e); return null; }
         }
 
+        /// <summary>Personnage du joueur local (sert d'« auteur » des actions des clients chez l'hôte).</summary>
+        public static Il2CppFallenTreeGames.CharacterController.Character PlayerCharacter()
+        {
+            if (!Find()) return null;
+            try { return _player.GetPlayerCharacter(); }
+            catch (Exception e) { WarnOnce("GetPlayerCharacter", e); return null; }
+        }
+
         public static VehicleController PlayerVehicle()
         {
             if (!Find()) return null;

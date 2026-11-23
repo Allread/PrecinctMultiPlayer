@@ -26,6 +26,9 @@ namespace PrecinctMP
         public event Action<WorldState> WorldReceived;
         public event Action<List<IncidentInfo>> IncidentsReceived;
         public event Action<List<SuspectState>> SuspectsReceived;
+        /// <summary>Hôte : un client demande une action (id du client, demande).</summary>
+        public event Action<byte, ActionRequest> ActionRequested;
+        public event Action<ActionResult> ActionResultReceived;
         /// <summary>Hôte : un client vient d'être accepté (pour lui envoyer l'état du monde).</summary>
         public event Action<byte> ClientAccepted;
 
@@ -138,6 +141,29 @@ namespace PrecinctMP
 
         public bool HasClients => IsHost && _peerToId.Count > 0;
 
+        /// <summary>Client : demande une action à l'hôte.</summary>
+        public void SendAction(ActionRequest req)
+        {
+            if (IsHost || _server == null || !IsConnected) return;
+            _w.Reset();
+            req.Write(_w);
+            _server.Send(_w, DeliveryMethod.ReliableOrdered);
+        }
+
+        /// <summary>Hôte : renvoie le résultat au client qui a demandé l'action.</summary>
+        public void SendActionResult(byte clientId, ActionResult res)
+        {
+            if (!IsHost || _net == null) return;
+            foreach (var kv in _peerToId)
+            {
+                if (kv.Value != clientId) continue;
+                _w.Reset();
+                res.Write(_w);
+                kv.Key.Send(_w, DeliveryMethod.ReliableOrdered);
+                return;
+            }
+        }
+
         public void SendChat(string text)
         {
             if (!IsConnected || LocalId == 255) return;
@@ -233,6 +259,15 @@ namespace PrecinctMP
                         break;
                     case MsgType.Suspects when !IsHost:
                         SuspectsReceived?.Invoke(SharedWorldProtocol.ReadSuspects(r));
+                        break;
+                    case MsgType.Action when IsHost:
+                    {
+                        if (!_peerToId.TryGetValue(peer, out byte clientId)) return;
+                        ActionRequested?.Invoke(clientId, ActionRequest.Read(r));
+                        break;
+                    }
+                    case MsgType.ActionResult when !IsHost:
+                        ActionResultReceived?.Invoke(ActionResult.Read(r));
                         break;
                     case MsgType.Chat:
                     {

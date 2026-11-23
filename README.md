@@ -2,7 +2,7 @@
 
 Mod multijoueur expérimental et non officiel pour *The Precinct*.
 
-> Le projet est en développement. Les DLL de la v3.0.0 sont disponibles dans le dossier `mod_dll`, mais cette version reste expérimentale.
+> Le projet est en développement. Les DLL de la v0.4.0 sont disponibles dans le dossier `mod_dll`, mais cette version reste expérimentale.
 
 ## Présentation
 
@@ -12,7 +12,7 @@ Le mod ne synchronise pas une partie complète. Chaque joueur conserve sa propre
 
 ## État actuel
 
-Version expérimentale : **v0.3.0**
+Version disponible : **v0.4.0**
 
 - Communication réseau UDP avec hôte et clients.
 - Modèles réels du jeu pour les véhicules distants, avec leur type et leur livrée.
@@ -29,8 +29,10 @@ Version expérimentale : **v0.3.0**
 - Synchronisation de l'heure, de la météo et de la vitesse d'écoulement du temps de l'hôte.
 - Transition progressive de la météo côté client, en utilisant les changements normaux du jeu.
 - Affichage de l'heure et de la météo de l'hôte dans le HUD.
+- Envoi de demandes d'action du client vers l'hôte pour les suspects partagés.
+- Vérification des actions par l'hôte avant leur exécution sur les vrais personnages du jeu.
 
-Les suspects partagés sont actuellement des copies visuelles sans collision. Le client peut les voir, mais ne peut pas encore agir dessus.
+Les suspects affichés côté client sont des copies visuelles sans collision. Les actions sont toutefois exécutées par l'hôte sur ses vrais personnages, puis le résultat est renvoyé au client.
 
 ## Prérequis
 
@@ -85,9 +87,9 @@ Ou modifier la valeur correspondante dans `PrecinctMP.csproj`.
 
 ## Compiler
 
-La v3.0.0 modifie le format réseau et ajoute une nouvelle référence dans `PrecinctMP.csproj`. L'hôte et tous les clients doivent utiliser exactement la même version.
+La v0.4.0 modifie le format réseau et ajoute une nouvelle référence dans `PrecinctMP.csproj`. L'hôte et tous les clients doivent utiliser exactement la même version.
 
-1. Remplace l'ensemble du projet par les fichiers de la v3.0.0, y compris `PrecinctMP.csproj`.
+1. Remplace l'ensemble du projet par les fichiers de la v0.4.0, y compris `PrecinctMP.csproj`.
 2. Supprime les dossiers `bin` et `obj` afin d'éviter de conserver une ancienne configuration ou des anciennes références.
 3. Lance le jeu une fois avec MelonLoader.
 4. Vérifie que `MelonLoader\Il2CppAssemblies\` contient des DLL.
@@ -165,7 +167,7 @@ Un marqueur `▼` est affiché au-dessus de chaque lieu d'incident. La mention `
 
 Les noms des crimes correspondent actuellement aux noms internes du jeu et apparaissent donc en anglais, par exemple `Vehicle Theft`.
 
-## Synchronisation du monde — v3.0.0
+## Synchronisation du monde — v0.4.0
 
 L'hôte partage désormais son heure, sa météo et sa vitesse d'écoulement du temps avec les clients. Cette étape utilise les fonctions exposées par `TimeOfDayManager` : `GetTimeInHours`, `SetTimeInHours`, `GetPerceivedWeatherType`, `StartWeatherChange`, `SetStaticWeather` et la vitesse du temps.
 
@@ -221,6 +223,22 @@ Le statut affiché au-dessus du suspect peut être :
 
 Pour éviter de perdre une mission locale en cours, il est recommandé que le client se connecte depuis une patrouille libre.
 
+## Actions sur les suspects
+
+Le client peut demander une action lorsqu'il est à proximité d'un suspect partagé. Une invite indique les touches disponibles :
+
+| Touche par défaut | Action |
+|---|---|
+| Y | Donner l'ordre de se rendre |
+| U | Plaquer |
+| I | Menotter |
+| O | Fouiller |
+| Tir | Envoyer une demande de tir si la trajectoire touche un suspect |
+
+Les touches Y, U, I et O peuvent être personnalisées dans `MelonPreferences.cfg`. Les actions de proximité sont disponibles à pied ; les distances et les états du suspect sont contrôlés par l'hôte. L'hôte renvoie au client un résultat accepté ou refusé avec un message explicatif.
+
+Les actions actuellement prises en charge sont : ordre de se rendre, plaquage, menottage, fouille et tir. Le client ne pilote pas directement les PNJ de l'hôte : il envoie une demande réseau et l'hôte reste l'autorité sur l'action et ses conséquences.
+
 ## Premier test
 
 Commence par tester la détection locale :
@@ -269,12 +287,19 @@ src/
   ModalDialog.cs   Base commune des fenêtres modales
   JoinDialog.cs    Fenêtre de connexion
   HostDialog.cs    Fenêtre d'hébergement
-	HostCrimes.cs    Lecture et envoi des incidents de l'hôte
+  ActionProtocol.cs Format des demandes et résultats d'actions
+  ClientActions.cs Actions demandées par le client et invite à l'écran
+  HostActions.cs   Validation et exécution des actions chez l'hôte
+  HostCrimes.cs    Lecture et envoi des incidents de l'hôte
   CrimeSuppression.cs Désactivation des crimes et appels locaux du client
   SharedWorldView.cs Affichage des incidents et suspects partagés
   SharedWorldProtocol.cs Format des données du monde partagé
-	WorldSync.cs     Synchronisation de l'heure et de la météo de l'hôte
+  WorldSync.cs     Synchronisation de l'heure et de la météo de l'hôte
   Hotkeys.cs       Gestion des raccourcis clavier
+mod_dll/
+  PrecinctMP.dll   DLL compilée du mod
+  LiteNetLib.dll   Dépendance réseau du mod
+  How_To.md        Guide d'installation de MelonLoader et des DLL
 ```
 
 ## Feuille de route
@@ -285,11 +310,10 @@ src/
 | 0.2 | Classes réelles, modèles des véhicules et états du gyrophare | ✅ Écrit, à tester |
 | 0.2.0 | Modèle et animations du policier à pied | ✅ Écrit, à tester |
 | 0.2.2 | Synchronisation de l'heure, de la météo et de la vitesse du temps | ✅ Écrit, à compiler et tester |
-| 0.2.x | Tenues et actions ponctuelles des joueurs | ⏳ Prévu |
 | 0.3.0 | Incidents et suspects de l'hôte visibles par le client | ✅ Écrit, à compiler et tester |
-| 0.3 | Synchronisation avancée des gyrophares, sirènes et collisions | ⏳ Prévu |
-| 0.4 | Actions sur les suspects et arrestations synchronisées | ⏳ Prévu |
-| 0.5 | Progression complète des incidents et du monde partagé | ⏳ Prévu |
+| 0.4.0 | Actions sur les suspects : se rendre, plaquer, menotter, fouiller et tirer | ✅ Écrit, à compiler et tester |
+| 3.1 | Synchronisation avancée des gyrophares, sirènes et collisions | ⏳ Prévu |
+| 4.0 | Progression complète des incidents et du monde partagé | ⏳ Prévu |
 | Plus tard | Trafic, PNJ, heure et météo synchronisés | ⏳ Prévu |
 
 ## Limites et avertissements
@@ -300,10 +324,10 @@ src/
 - Une connexion directe par Internet nécessite une redirection UDP et une configuration correcte du pare-feu.
 - La récupération de l'IP publique dépend d'un service web externe.
 - Les crimes locaux du client sont effacés à la connexion et leur génération est suspendue pendant la session ; une mission en cours peut donc être annulée.
-- Les incidents, les suspects et le monde partagé utilisent le format réseau correspondant à la version installée : l'hôte et les clients doivent utiliser la même version.
-- La synchronisation de l'heure et de la météo utilise le format réseau de la v3.0.0 : l'hôte et les clients doivent utiliser la même version.
+- Les incidents, les suspects, les actions et le monde partagé utilisent le format réseau de la version installée : l'hôte et les clients doivent utiliser exactement la même version.
+- La synchronisation de l'heure et de la météo utilise le format réseau de la version installée : l'hôte et les clients doivent utiliser la même version.
 - Le sens du paramètre de transition de `StartWeatherChange` reste à confirmer en test réel.
-- Les suspects partagés sont uniquement visuels et ne possèdent pas encore de collision ni d'interaction de gameplay.
+- Les suspects partagés sont visuels côté client et ne possèdent pas de collision locale ; les actions sont exécutées à distance par l'hôte.
 - Les noms des crimes sont affichés en anglais jusqu'à l'ajout d'une table de traduction basée sur les noms réellement utilisés par le jeu.
 - Au lancement, le log doit indiquer `Blocage des crimes client : 7/7 patchs posés`. Un nombre inférieur à 7 indique qu'il faut fournir `MelonLoader\Latest.log`.
 - Les raccourcis sont lus via l'API Windows et fonctionnent lorsque le jeu est au premier plan.

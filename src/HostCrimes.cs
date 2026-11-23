@@ -32,6 +32,22 @@ namespace PrecinctMP
         private class SuspectCache { public AnimatorSync Anim; public string Model; public float NextModelCheck; }
         private readonly Dictionary<IntPtr, SuspectCache> _cache = new Dictionary<IntPtr, SuspectCache>();
 
+        /// <summary>Suspect réel chez l'hôte, retrouvé à partir de son id réseau (pour les actions des clients).</summary>
+        public class LiveSuspect
+        {
+            public Character Character;
+            public ObjectiveTarget Target;
+            public ObjectiveTargetTracker Tracker;
+        }
+        private readonly Dictionary<ushort, LiveSuspect> _live = new Dictionary<ushort, LiveSuspect>();
+
+        public bool TryGetLive(ushort id, out LiveSuspect s)
+        {
+            if (_live.TryGetValue(id, out s) && s.Character != null) return true;
+            s = null;
+            return false;
+        }
+
         private readonly List<IncidentInfo> _incidents = new List<IncidentInfo>();
         private readonly List<SuspectState> _suspects = new List<SuspectState>();
 
@@ -61,6 +77,7 @@ namespace PrecinctMP
         {
             _ids.Clear();
             _cache.Clear();
+            _live.Clear();
             _incidents.Clear();
             _suspects.Clear();
             _nextId = 1;
@@ -80,6 +97,7 @@ namespace PrecinctMP
         {
             _incidents.Clear();
             _suspects.Clear();
+            _live.Clear();
 
             var list = _crimes.CurrentAmbientCrimes();
             if (list == null) return;
@@ -120,7 +138,11 @@ namespace PrecinctMP
 
                             if (!hasPos) { info.Pos = ch.transform.position; hasPos = true; }
                             if (_suspects.Count < SharedWorldProtocol.MaxSuspects)
-                                _suspects.Add(ReadSuspect(ch, crimeId, (byte)status));
+                            {
+                                var st = ReadSuspect(ch, crimeId, (byte)status);
+                                _suspects.Add(st);
+                                _live[st.Id] = new LiveSuspect { Character = ch, Target = target, Tracker = tracker };
+                            }
                         }
                     }
 

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.3.0", "Anthony")]
+[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.4.0", "Anthony")]
 [assembly: MelonGame(null, null)] // nom exact du jeu/éditeur à renseigner une fois connu
 
 namespace PrecinctMP
@@ -12,8 +12,9 @@ namespace PrecinctMP
     /// v0.1 : connexion à deux, on se voit et on se déplace ensemble.
     /// v0.2 : vrai modèle animé du policier à pied, vraie voiture avec livrée.
     /// v0.2.1 : actions ponctuelles (menotter, tirer, sauter...) via l'état d'animation.
-    /// v3.0.0 : monde partagé étape 1 — heure et météo de l'hôte imposées aux clients.
+    /// v0.2.2 : monde partagé étape 1 — heure et météo de l'hôte imposées aux clients.
     /// v0.3.0 : étapes 2-3 — crimes/appels et suspects de l'hôte partagés, crimes du client coupés.
+    /// v0.4.0 : étape 4 — le client agit sur les suspects (se rendre, plaquer, menotter, fouiller, tirer).
     ///
     /// F8  = débuter une session   F9 = rejoindre   F10 = quitter
     /// F7  = diagnostic  F11 = afficher/masquer le HUD
@@ -22,7 +23,10 @@ namespace PrecinctMP
     {
         private MelonPreferences_Entry<string> _name, _hostIp, _playerObject;
         private MelonPreferences_Entry<int> _port;
-        private MelonPreferences_Entry<float> _minVehicleMass;
+        private MelonPreferences_Entry<float> _minVehicleMass, _shotDamage;
+        private MelonPreferences_Entry<string> _keySurrender, _keyTackle, _keyRestrain, _keySearch;
+        private readonly KeyBindings _keys = new KeyBindings();
+        private readonly ClientActions _clientActions = new ClientActions();
 
         private readonly NetSession _session = new NetSession();
         private readonly LocalPlayer _local = new LocalPlayer();
@@ -32,6 +36,7 @@ namespace PrecinctMP
         private readonly SharedWorldView _sharedView = new SharedWorldView();
 #if IL2CPP
         private readonly HostCrimes _hostCrimes = new HostCrimes();
+        private HostActions _hostActions;
 #endif
         private readonly JoinDialog _joinDialog = new JoinDialog();
         private readonly HostDialog _hostDialog = new HostDialog();
@@ -49,6 +54,13 @@ namespace PrecinctMP
             _port = cat.CreateEntry("Port", 7777, "Port UDP");
             _playerObject = cat.CreateEntry("PlayerObjectName", "", "Nom du GameObject joueur si la détection auto échoue (voir F7)");
             _minVehicleMass = cat.CreateEntry("MinVehicleMass", 500f, "Masse minimale d'un Rigidbody pour être considéré comme une voiture");
+            _keySurrender = cat.CreateEntry("KeyOrderSurrender", "Y", "Client : ordonner à un suspect de se rendre");
+            _keyTackle = cat.CreateEntry("KeyTackle", "U", "Client : plaquer un suspect");
+            _keyRestrain = cat.CreateEntry("KeyRestrain", "I", "Client : menotter un suspect");
+            _keySearch = cat.CreateEntry("KeySearch", "O", "Client : fouiller un suspect");
+            _shotDamage = cat.CreateEntry("ShotDamage", 35f, "Client : dégâts d'un tir sur un suspect de l'hôte");
+            _keys.Surrender = _keySurrender.Value; _keys.Tackle = _keyTackle.Value;
+            _keys.Restrain = _keyRestrain.Value; _keys.Search = _keySearch.Value;
 
             _session.StateReceived += _remotes.OnState;
             _session.PlayerJoined += (id, n) => { _remotes.Add(id, n); Feed($"{n} a rejoint la patrouille"); };
@@ -58,8 +70,18 @@ namespace PrecinctMP
             _session.ClientAccepted += _ => _world.ForceSendSoon();
             _session.IncidentsReceived += _sharedView.OnIncidents;
             _session.SuspectsReceived += _sharedView.OnSuspects;
+            _session.ActionResultReceived += r => Feed((r.Ok ? "" : "Refusé : ") + r.Message);
 #if IL2CPP
             CrimeSuppression.Install(HarmonyInstance);
+            ClientActions.Install(HarmonyInstance);
+            _hostActions = new HostActions(_hostCrimes,
+                id => _remotes.TryGetPosition(id, out var p) ? p : (Vector3?)null);
+            _session.ActionRequested += (clientId, req) =>
+            {
+                var res = _hostActions.Execute(clientId, req);
+                _session.SendActionResult(clientId, res);
+                if (res.Ok && req.Action != SuspectAction.Shoot) Feed($"{NameOf(clientId)} : {res.Message}");
+            };
 #endif
 
             _joinDialog.OnJoin = (ip, port) =>
@@ -112,6 +134,7 @@ namespace PrecinctMP
 #endif
             }
             _sharedView.Update();
+            if (!AnyDialogOpen) _clientActions.Update(_session, _sharedView, _local, _keys, _shotDamage.Value);
 
             if (_session.IsConnected && Time.unscaledTime >= _nextSend)
             {
@@ -144,6 +167,7 @@ namespace PrecinctMP
             if (!AnyDialogOpen)
             {
                 _sharedView.DrawSuspectLabels();
+                _clientActions.DrawPrompt();
                 _sharedView.DrawHud(Screen.width - 350, 10);
             }
             if (_joinDialog.IsOpen) { _joinDialog.Draw(); return; }
@@ -158,7 +182,7 @@ namespace PrecinctMP
                 : _local.Vehicle != null ? $"en voiture ({_local.VehicleName})" : "à pied";
             if (_local.Player != null) player += _local.UsingGameApi ? "" : " [mode générique]";
 
-            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.3.0");
+            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.4.0");
             GUI.Label(new Rect(20, 32, 310, 20), $"Réseau : {status}");
             GUI.Label(new Rect(20, 50, 310, 20), $"Local : {player} — {_remotes.Count} autre(s) joueur(s)");
             int line = 0;

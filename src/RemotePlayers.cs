@@ -40,6 +40,15 @@ namespace PrecinctMP
 
         public int Count => _remotes.Count;
 
+        /// <summary>Dernière position connue d'un joueur distant (à pied ou en voiture).</summary>
+        public bool TryGetPosition(byte id, out Vector3 pos)
+        {
+            pos = default;
+            if (!_remotes.TryGetValue(id, out var r) || !r.HasState) return false;
+            pos = r.Last.InVehicle ? r.Last.VehPos : r.Last.Pos;
+            return true;
+        }
+
         /// <summary>À appeler à chaque image avec le joueur local et son Animator.</summary>
         public void SetTemplate(Transform playerRoot, Animator bodyAnimator)
         {
