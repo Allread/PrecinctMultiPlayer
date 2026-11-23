@@ -15,8 +15,8 @@ namespace PrecinctMP
     /// </summary>
     public class HostDialog : ModalDialog
     {
-        protected override float Width => 420f;
-        protected override float Height => 150f + Mathf.Max(1, _ips.Count) * 26f + 90f;
+        protected override float Width => 460f;
+        protected override float Height => 150f + Mathf.Max(1, _ips.Count) * 26f + 112f;
         protected override string Title => _running ? "SESSION MULTIJOUEUR EN COURS" : "DÉBUTER UNE SESSION MULTIJOUEUR";
 
         private readonly List<(string ip, string label)> _ips = new List<(string, string)>();
@@ -81,8 +81,11 @@ namespace PrecinctMP
             else _port = GUI.TextField(new Rect(x + 110, row, 90, 22), _port, 5);
             row += 26;
 
-            GUI.Label(new Rect(x + 20, row, Width - 40, 22),
-                _error.Length > 0 ? "Erreur : " + _error : "IP Internet : ouvre ce port en UDP sur ta box (redirection vers ce PC).");
+            // Texte sur deux lignes (le style par défaut coupe sinon le texte trop long)
+            var wrap = new GUIStyle(GUI.skin.label) { wordWrap = true };
+            GUI.Label(new Rect(x + 20, row, Width - 40, 40),
+                _error.Length > 0 ? "Erreur : " + _error
+                : "IP Internet : ouvre ce port en UDP sur ta box, redirigé vers ce PC. Avec un VPN (Radmin, ZeroTier), rien à ouvrir.", wrap);
 
             string main = _running ? "Arrêter la session" : "Démarrer";
             if (GUI.Button(new Rect(x + 20, y + Height - 46, 170, 30), main)) OnSubmit();
