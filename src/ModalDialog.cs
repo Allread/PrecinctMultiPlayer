@@ -45,6 +45,7 @@ namespace PrecinctMP
             if (!IsOpen) return;
 
             var e = Event.current;
+            if (e != null && e.type == EventType.KeyDown && HandleKey(e)) { e.Use(); return; }
             if (e != null && e.type == EventType.KeyDown)
             {
                 if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { e.Use(); OnSubmit(); return; }
@@ -71,6 +72,9 @@ namespace PrecinctMP
             GameApi.SetInputBlocked(true);
 #endif
         }
+
+        /// <summary>Touche reçue avant Entrée/Échap ; renvoyer vrai pour la consommer.</summary>
+        protected virtual bool HandleKey(Event e) => false;
 
         protected abstract void DrawContent(float x, float y);
         protected abstract void OnSubmit();

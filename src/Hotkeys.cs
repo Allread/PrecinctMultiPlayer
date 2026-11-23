@@ -10,7 +10,7 @@ namespace PrecinctMP
     /// </summary>
     public static class Hotkeys
     {
-        public const int F7 = 0x76, F8 = 0x77, F9 = 0x78, F10 = 0x79, F11 = 0x7A;
+        public const int F6 = 0x75, F7 = 0x76, F8 = 0x77, F9 = 0x78, F10 = 0x79, F11 = 0x7A;
 
         [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
         [DllImport("user32.dll")] private static extern System.IntPtr GetForegroundWindow();

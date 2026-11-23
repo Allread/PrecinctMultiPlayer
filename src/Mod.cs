@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.4.0", "Anthony")]
+[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.4.1", "Anthony")]
 [assembly: MelonGame(null, null)] // nom exact du jeu/éditeur à renseigner une fois connu
 
 namespace PrecinctMP
@@ -17,7 +17,7 @@ namespace PrecinctMP
     /// v0.4.0 : étape 4 — le client agit sur les suspects (se rendre, plaquer, menotter, fouiller, tirer).
     ///
     /// F8  = débuter une session   F9 = rejoindre   F10 = quitter
-    /// F7  = diagnostic  F11 = afficher/masquer le HUD
+    /// F6  = touches du mod   F7 = diagnostic   F11 = afficher/masquer le HUD
     /// </summary>
     public class Mod : MelonMod
     {
@@ -40,7 +40,8 @@ namespace PrecinctMP
 #endif
         private readonly JoinDialog _joinDialog = new JoinDialog();
         private readonly HostDialog _hostDialog = new HostDialog();
-        private bool AnyDialogOpen => _joinDialog.IsOpen || _hostDialog.IsOpen;
+        private readonly KeysDialog _keysDialog = new KeysDialog();
+        private bool AnyDialogOpen => _joinDialog.IsOpen || _hostDialog.IsOpen || _keysDialog.IsOpen;
 
         private const float SendInterval = 1f / 20f;
         private float _nextSend;
@@ -61,6 +62,16 @@ namespace PrecinctMP
             _shotDamage = cat.CreateEntry("ShotDamage", 35f, "Client : dégâts d'un tir sur un suspect de l'hôte");
             _keys.Surrender = _keySurrender.Value; _keys.Tackle = _keyTackle.Value;
             _keys.Restrain = _keyRestrain.Value; _keys.Search = _keySearch.Value;
+
+            _keysDialog.OnSave = k =>
+            {
+                _keySurrender.Value = _keys.Surrender = k[0];
+                _keyTackle.Value = _keys.Tackle = k[1];
+                _keyRestrain.Value = _keys.Restrain = k[2];
+                _keySearch.Value = _keys.Search = k[3];
+                MelonPreferences.Save();
+                Feed($"Touches : se rendre {k[0]}, plaquer {k[1]}, menotter {k[2]}, fouiller {k[3]}");
+            };
 
             _session.StateReceived += _remotes.OnState;
             _session.PlayerJoined += (id, n) => { _remotes.Add(id, n); Feed($"{n} a rejoint la patrouille"); };
@@ -111,6 +122,7 @@ namespace PrecinctMP
             HandleKeys();
             _joinDialog.Tick();
             _hostDialog.Tick();
+            _keysDialog.Tick();
 
             _session.Poll();
             LogPlayerDetection();
@@ -158,6 +170,7 @@ namespace PrecinctMP
                 _guiBroken = true;
                 _joinDialog.Close();
                 _hostDialog.Close();
+                _keysDialog.Close();
                 LoggerInstance.Warning("HUD désactivé (IMGUI indisponible) : " + e.Message);
             }
         }
@@ -172,6 +185,7 @@ namespace PrecinctMP
             }
             if (_joinDialog.IsOpen) { _joinDialog.Draw(); return; }
             if (_hostDialog.IsOpen) { _hostDialog.Draw(); return; }
+            if (_keysDialog.IsOpen) { _keysDialog.Draw(); return; }
             _remotes.DrawLabels();
 
             string status = !_session.IsActive ? "hors ligne (F8 héberger / F9 rejoindre)"
@@ -182,7 +196,7 @@ namespace PrecinctMP
                 : _local.Vehicle != null ? $"en voiture ({_local.VehicleName})" : "à pied";
             if (_local.Player != null) player += _local.UsingGameApi ? "" : " [mode générique]";
 
-            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.4.0");
+            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.4.1");
             GUI.Label(new Rect(20, 32, 310, 20), $"Réseau : {status}");
             GUI.Label(new Rect(20, 50, 310, 20), $"Local : {player} — {_remotes.Count} autre(s) joueur(s)");
             int line = 0;
@@ -196,6 +210,7 @@ namespace PrecinctMP
         {
             _joinDialog.Close();
             _hostDialog.Close();
+            _keysDialog.Close();
 #if IL2CPP
             CrimeSuppression.SetActive(false);
 #endif
@@ -208,13 +223,18 @@ namespace PrecinctMP
             {
                 if (_guiBroken) { _remotes.Clear(); _session.Host(_port.Value, _name.Value); } // pas d'IMGUI : démarrage direct
                 else if (_hostDialog.IsOpen) _hostDialog.Close();
-                else { _joinDialog.Close(); _hostDialog.Open(_port.Value, _session.IsActive && _session.IsHost); }
+                else { _joinDialog.Close(); _keysDialog.Close(); _hostDialog.Open(_port.Value, _session.IsActive && _session.IsHost); }
             }
             if (Hotkeys.Pressed(Hotkeys.F9))
             {
                 if (_guiBroken) { _remotes.Clear(); _session.Join(_hostIp.Value, _port.Value, _name.Value); } // pas d'IMGUI : connexion directe
                 else if (_joinDialog.IsOpen) _joinDialog.Close();
-                else { _hostDialog.Close(); _joinDialog.Open(_hostIp.Value, _port.Value); }
+                else { _hostDialog.Close(); _keysDialog.Close(); _joinDialog.Open(_hostIp.Value, _port.Value); }
+            }
+            if (Hotkeys.Pressed(Hotkeys.F6) && !_guiBroken)
+            {
+                if (_keysDialog.IsOpen) _keysDialog.Close();
+                else { _joinDialog.Close(); _hostDialog.Close(); _keysDialog.Open(_keys); }
             }
             if (Hotkeys.Pressed(Hotkeys.F10)) { _session.Stop(); _remotes.Clear(); }
             if (Hotkeys.Pressed(Hotkeys.F7)) SafeDump();

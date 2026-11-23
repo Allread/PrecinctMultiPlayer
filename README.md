@@ -2,7 +2,7 @@
 
 Mod multijoueur expérimental et non officiel pour *The Precinct*.
 
-> Le projet est en développement. Les DLL de la v0.4.0 sont disponibles dans le dossier `mod_dll`, mais cette version reste expérimentale.
+> Le projet est en développement. Les DLL de la v0.4.1 sont disponibles dans le dossier `mod_dll`, mais cette version reste expérimentale.
 
 ## Présentation
 
@@ -12,7 +12,7 @@ Le mod ne synchronise pas une partie complète. Chaque joueur conserve sa propre
 
 ## État actuel
 
-Version disponible : **v0.4.0**
+Version disponible : **v0.4.1**
 
 - Communication réseau UDP avec hôte et clients.
 - Modèles réels du jeu pour les véhicules distants, avec leur type et leur livrée.
@@ -31,6 +31,7 @@ Version disponible : **v0.4.0**
 - Affichage de l'heure et de la météo de l'hôte dans le HUD.
 - Envoi de demandes d'action du client vers l'hôte pour les suspects partagés.
 - Vérification des actions par l'hôte avant leur exécution sur les vrais personnages du jeu.
+- Fenêtre F6 pour personnaliser les touches des actions sur les suspects.
 
 Les suspects affichés côté client sont des copies visuelles sans collision. Les actions sont toutefois exécutées par l'hôte sur ses vrais personnages, puis le résultat est renvoyé au client.
 
@@ -87,9 +88,9 @@ Ou modifier la valeur correspondante dans `PrecinctMP.csproj`.
 
 ## Compiler
 
-La v0.4.0 modifie le format réseau et ajoute une nouvelle référence dans `PrecinctMP.csproj`. L'hôte et tous les clients doivent utiliser exactement la même version.
+La v0.4.1 modifie le format réseau et ajoute une nouvelle référence dans `PrecinctMP.csproj`. L'hôte et tous les clients doivent utiliser exactement la même version.
 
-1. Remplace l'ensemble du projet par les fichiers de la v0.4.0, y compris `PrecinctMP.csproj`.
+1. Remplace l'ensemble du projet par les fichiers de la v0.4.1, y compris `PrecinctMP.csproj`.
 2. Supprime les dossiers `bin` et `obj` afin d'éviter de conserver une ancienne configuration ou des anciennes références.
 3. Lance le jeu une fois avec MelonLoader.
 4. Vérifie que `MelonLoader\Il2CppAssemblies\` contient des DLL.
@@ -105,7 +106,7 @@ Le projet copie automatiquement :
 - `PrecinctMP.dll` dans `<Dossier du jeu>\Mods\` ;
 - `LiteNetLib.dll` dans `<Dossier du jeu>\UserLibs\`.
 
-Si la copie automatique n'est pas active, installe manuellement les DLL en suivant [le guide d'installation](mod_dll/How_To.md).
+Si la copie automatique n'est pas active, installe manuellement les DLL en suivant [le guide d'installation](mod_dll/README.md).
 
 ## Utiliser le mod
 
@@ -115,13 +116,14 @@ Lance le jeu et charge une partie. Les raccourcis sont les suivants :
 |---|---|
 | F8 | Ouvre « DÉBUTER UNE SESSION MULTIJOUEUR ». Permet de choisir le port et de démarrer ou arrêter la session. |
 | F9 | Ouvre « REJOINDRE UNE SESSION ». Permet de saisir l'adresse IP et le port. |
+| F6 | Ouvre « TOUCHES DU MOD » pour personnaliser les touches des actions sur les suspects. |
 | Entrée | Valide la fenêtre active. |
 | Échap | Ferme la fenêtre active. |
 | F10 | Quitte la session multijoueur. |
 | F7 | Génère le dump de diagnostic. |
 | F11 | Affiche ou masque le HUD. |
 
-Les valeurs saisies dans F9 sont mémorisées automatiquement dans `UserData\MelonPreferences.cfg`. Les commandes du jeu sont bloquées tant qu'une fenêtre F8 ou F9 est ouverte.
+Les valeurs saisies dans F9 et les touches personnalisées dans F6 sont mémorisées automatiquement dans `UserData\MelonPreferences.cfg`. Les commandes du jeu sont bloquées tant qu'une fenêtre F6, F8 ou F9 est ouverte.
 
 ## Connexion réseau
 
@@ -167,7 +169,7 @@ Un marqueur `▼` est affiché au-dessus de chaque lieu d'incident. La mention `
 
 Les noms des crimes correspondent actuellement aux noms internes du jeu et apparaissent donc en anglais, par exemple `Vehicle Theft`.
 
-## Synchronisation du monde — v0.4.0
+## Synchronisation du monde — v0.4.1
 
 L'hôte partage désormais son heure, sa météo et sa vitesse d'écoulement du temps avec les clients. Cette étape utilise les fonctions exposées par `TimeOfDayManager` : `GetTimeInHours`, `SetTimeInHours`, `GetPerceivedWeatherType`, `StartWeatherChange`, `SetStaticWeather` et la vitesse du temps.
 
@@ -239,6 +241,17 @@ Les touches Y, U, I et O peuvent être personnalisées dans `MelonPreferences.cf
 
 Les actions actuellement prises en charge sont : ordre de se rendre, plaquage, menottage, fouille et tir. Le client ne pilote pas directement les PNJ de l'hôte : il envoie une demande réseau et l'hôte reste l'autorité sur l'action et ses conséquences.
 
+## Personnaliser les touches
+
+Appuie sur **F6** pour ouvrir « TOUCHES DU MOD ». La fenêtre permet de modifier les quatre touches des actions de proximité :
+
+- ordre de se rendre ;
+- plaquer ;
+- menotter ;
+- fouiller.
+
+Seules les lettres et les chiffres sont acceptés. Une touche ne peut pas être attribuée à deux actions. **Par défaut** restaure les touches `Y`, `U`, `I` et `O`, puis **Enregistrer** mémorise le choix dans `MelonPreferences.cfg`.
+
 ## Premier test
 
 Commence par tester la détection locale :
@@ -290,6 +303,7 @@ src/
   ActionProtocol.cs Format des demandes et résultats d'actions
   ClientActions.cs Actions demandées par le client et invite à l'écran
   HostActions.cs   Validation et exécution des actions chez l'hôte
+	KeysDialog.cs    Fenêtre F6 de personnalisation des touches
   HostCrimes.cs    Lecture et envoi des incidents de l'hôte
   CrimeSuppression.cs Désactivation des crimes et appels locaux du client
   SharedWorldView.cs Affichage des incidents et suspects partagés
@@ -299,7 +313,7 @@ src/
 mod_dll/
   PrecinctMP.dll   DLL compilée du mod
   LiteNetLib.dll   Dépendance réseau du mod
-  How_To.md        Guide d'installation de MelonLoader et des DLL
+	README.md        Guide d'installation de MelonLoader et des DLL
 ```
 
 ## Feuille de route
@@ -311,7 +325,8 @@ mod_dll/
 | 0.2.0 | Modèle et animations du policier à pied | ✅ Écrit, à tester |
 | 0.2.2 | Synchronisation de l'heure, de la météo et de la vitesse du temps | ✅ Écrit, à compiler et tester |
 | 0.3.0 | Incidents et suspects de l'hôte visibles par le client | ✅ Écrit, à compiler et tester |
-| 0.4.0 | Actions sur les suspects : se rendre, plaquer, menotter, fouiller et tirer | ✅ Écrit, à compiler et tester |
+| 0.4.0 | Actions sur les suspects : se rendre, plaquer, menotter, fouiller et tirer | ✅ Écrit |
+| 0.4.1 | Personnalisation des touches des actions avec F6 | ✅ Écrit, à compiler et tester |
 | 3.1 | Synchronisation avancée des gyrophares, sirènes et collisions | ⏳ Prévu |
 | 4.0 | Progression complète des incidents et du monde partagé | ⏳ Prévu |
 | Plus tard | Trafic, PNJ, heure et météo synchronisés | ⏳ Prévu |
