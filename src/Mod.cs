@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.4.1", "Anthony")]
+[assembly: MelonInfo(typeof(PrecinctMP.Mod), "PrecinctMP", "0.4.2", "Anthony")]
 [assembly: MelonGame(null, null)] // nom exact du jeu/éditeur à renseigner une fois connu
 
 namespace PrecinctMP
@@ -196,7 +196,7 @@ namespace PrecinctMP
                 : _local.Vehicle != null ? $"en voiture ({_local.VehicleName})" : "à pied";
             if (_local.Player != null) player += _local.UsingGameApi ? "" : " [mode générique]";
 
-            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.4.1");
+            GUI.Box(new Rect(10, 10, 330, 70 + (_feed.Count + (_world.Status.Length > 0 ? 1 : 0)) * 18), "PrecinctMP 0.4.2");
             GUI.Label(new Rect(20, 32, 310, 20), $"Réseau : {status}");
             GUI.Label(new Rect(20, 50, 310, 20), $"Local : {player} — {_remotes.Count} autre(s) joueur(s)");
             int line = 0;

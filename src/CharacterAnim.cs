@@ -30,6 +30,7 @@ namespace PrecinctMP
         }
 
         private float[] _mismatchSince = new float[MaxLayers];
+        private static bool _paramWarned;
 
         private readonly Animator _anim;
         private readonly int[] _hashes;
@@ -37,18 +38,38 @@ namespace PrecinctMP
 
         public Animator Animator => _anim;
         public int ParamCount => _hashes.Length;
+        /// <summary>Lecture des paramètres impossible : ne pas réessayer.</summary>
+        public bool Failed { get; private set; }
 
         public AnimatorSync(Animator anim)
         {
             _anim = anim;
             var hashes = new List<int>();
             var types = new List<AnimatorControllerParameterType>();
-            foreach (var p in anim.parameters)
+            // Animator.parameters (tableau) plante en IL2CPP avec Unity 6 :
+            // on lit les paramètres un par un. Si même ça échoue, on continue
+            // sans paramètres : la synchro des états d'animation suffit à animer.
+            try
             {
-                if (p.type == AnimatorControllerParameterType.Trigger) continue;
-                hashes.Add(p.nameHash);
-                types.Add(p.type);
-                if (hashes.Count >= MaxValues / 2) break;
+                int count = anim.parameterCount;
+                for (int i = 0; i < count && hashes.Count < MaxValues / 2; i++)
+                {
+                    var p = anim.GetParameter(i);
+                    if (p == null || p.type == AnimatorControllerParameterType.Trigger) continue;
+                    hashes.Add(p.nameHash);
+                    types.Add(p.type);
+                }
+            }
+            catch (System.Exception e)
+            {
+                hashes.Clear();
+                types.Clear();
+                Failed = true;
+                if (!_paramWarned)
+                {
+                    _paramWarned = true;
+                    MelonLoader.MelonLogger.Warning("[MP] Paramètres d'animation illisibles, synchro par états uniquement : " + e.Message);
+                }
             }
             _hashes = hashes.ToArray();
             _types = types.ToArray();
@@ -152,7 +173,8 @@ namespace PrecinctMP
             foreach (var a in player.GetComponentsInChildren<Animator>(true))
             {
                 if (a == null || a.runtimeAnimatorController == null) continue;
-                int score = a.parameterCount + (a.isHuman ? 1000 : 0);
+                int score = (a.isHuman ? 1000 : 0);
+                try { score += a.parameterCount; } catch { }
                 if (score > bestParams) { best = a; bestParams = score; }
             }
             return best;

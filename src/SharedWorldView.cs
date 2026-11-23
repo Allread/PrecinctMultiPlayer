@@ -106,7 +106,7 @@ namespace PrecinctMP
                     if ((root - s.Pos).sqrMagnitude > 15f * 15f) { root = s.Pos; rot = s.Rot; }
                     Place(v, Vector3.Lerp(root, s.Pos, k), Quaternion.Slerp(rot, s.Rot, k));
 
-                    if (v.ModelAnim != null && v.ModelAnim.ParamCount == 0 && s.Anim != null)
+                    if (v.ModelAnim != null && v.ModelAnim.ParamCount == 0 && !v.ModelAnim.Failed && s.AnimParamCount > 0)
                         v.ModelAnim = new AnimatorSync(v.ModelAnim.Animator);
                     if (v.ModelAnim != null)
                     {

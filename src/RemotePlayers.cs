@@ -129,7 +129,7 @@ namespace PrecinctMP
                     if ((pos - s.Pos).sqrMagnitude > 15f * 15f) { pos = s.Pos; rot = s.Rot; } // téléportation
                     PlaceBody(r, Vector3.Lerp(pos, s.Pos, k), Quaternion.Slerp(rot, s.Rot, k));
                     // L'Animator peut n'exposer ses paramètres qu'après sa 1re image : on relit si besoin
-                    if (r.ModelAnim != null && r.ModelAnim.ParamCount == 0 && s.Anim != null)
+                    if (r.ModelAnim != null && r.ModelAnim.ParamCount == 0 && !r.ModelAnim.Failed && s.AnimParamCount > 0)
                         r.ModelAnim = new AnimatorSync(r.ModelAnim.Animator);
                     if (r.ModelAnim != null)
                     {

@@ -18,6 +18,7 @@ namespace PrecinctMP
         public Animator BodyAnimator => _animSync?.Animator;
         private AnimatorSync _animSync;
         private float _nextAnimSearch;
+        private bool _animWarned;
 
 #if IL2CPP
         private Il2Cpp.VehicleController _vc;
@@ -68,7 +69,11 @@ namespace PrecinctMP
             catch (System.Exception e)
             {
                 _animSync = null;
-                MelonLoader.MelonLogger.Warning("[MP] Animator du joueur illisible : " + e.Message);
+                if (!_animWarned)
+                {
+                    _animWarned = true; // une seule fois (avant : toutes les 2 s)
+                    MelonLoader.MelonLogger.Warning("[MP] Animator du joueur illisible : " + e.Message);
+                }
             }
         }
 
